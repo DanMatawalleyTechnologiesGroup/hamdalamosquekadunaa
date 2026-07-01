@@ -1,0 +1,381 @@
+import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Plus, Headphones, Video, BookOpen, Trash2, Star, Edit2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+
+const CATEGORIES = ['Tafsiri', 'Hadisi', 'Fiqhu', 'Sira', 'Tauhidi', "Wa'azi", "Fannut Ta'amul", 'Iziyya', 'Sauran'];
+const LANGUAGES = ['Hausa', 'Larabci', 'Turanci'];
+
+function UploadField({ label, value, onChange, accept }) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    onChange(file_url);
+    setUploading(false);
+  }
+
+  return (
+    <div>
+      <label className="text-sm font-medium text-foreground mb-1 block">{label}</label>
+      {value && <p className="text-xs text-primary truncate mb-1">✓ An ɗora fayil</p>}
+      <div className="flex gap-2">
+        <Input value={value || ''} onChange={e => onChange(e.target.value)} placeholder="URL ko ɗora fayil" className="flex-1" />
+        <label className="cursor-pointer">
+          <input type="file" accept={accept} className="hidden" onChange={handleUpload} />
+          <span className="inline-flex items-center px-3 py-2 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors">
+            {uploading ? '...' : 'Ɗora'}
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function AudioForm({ onSave, initial, onCancel }) {
+  const [form, setForm] = useState(initial || { title: '', speaker: '', description: '', audio_url: '', cover_image: '', duration: '', category: '', language: 'Hausa', is_featured: false });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title || !form.audio_url) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <Input placeholder="Sunan Wa'azi *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+      <Input placeholder="Sunan Malami *" value={form.speaker} onChange={e => setForm({ ...form, speaker: e.target.value })} />
+      <Input placeholder="Bayani" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+      <UploadField label="Fayilin Audio *" value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} accept="audio/*" />
+      <UploadField label="Hoton Murfin" value={form.cover_image} onChange={v => setForm({ ...form, cover_image: v })} accept="image/*" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="Tsawon lokaci (45:30)" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} />
+        <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
+          <SelectTrigger><SelectValue placeholder="Nau'i" /></SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-3">
+        <Select value={form.language} onValueChange={v => setForm({ ...form, language: v })}>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {LANGUAGES.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input type="checkbox" checked={form.is_featured} onChange={e => setForm({ ...form, is_featured: e.target.checked })} className="rounded" />
+          Shahararriyya
+        </label>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" className="flex-1" disabled={saving}>
+          {saving ? 'Ana ajiyewa...' : (initial ? 'Sabunta' : "Ɗora Wa'azi")}
+        </Button>
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Soke</Button>}
+      </div>
+    </form>
+  );
+}
+
+function VideoForm({ onSave, initial, onCancel }) {
+  const [form, setForm] = useState(initial || { title: '', speaker: '', description: '', video_url: '', thumbnail: '', duration: '', category: '', language: 'Hausa', is_featured: false });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title || !form.video_url) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <Input placeholder="Sunan Bidiyo *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+      <Input placeholder="Sunan Malami *" value={form.speaker} onChange={e => setForm({ ...form, speaker: e.target.value })} />
+      <Input placeholder="Bayani" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+      <div>
+        <label className="text-sm font-medium text-foreground mb-1 block">URL ɗin Bidiyo * (YouTube ko wani)</label>
+        <Input placeholder="https://youtube.com/watch?v=..." value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} required />
+      </div>
+      <UploadField label="Hoton Thumbnail" value={form.thumbnail} onChange={v => setForm({ ...form, thumbnail: v })} accept="image/*" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="Tsawon lokaci (1:30:00)" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} />
+        <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
+          <SelectTrigger><SelectValue placeholder="Nau'i" /></SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-3">
+        <Select value={form.language} onValueChange={v => setForm({ ...form, language: v })}>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {LANGUAGES.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input type="checkbox" checked={form.is_featured} onChange={e => setForm({ ...form, is_featured: e.target.checked })} className="rounded" />
+          Shahararriyya
+        </label>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" className="flex-1" disabled={saving}>
+          {saving ? 'Ana ajiyewa...' : (initial ? 'Sabunta' : 'Ɗora Bidiyo')}
+        </Button>
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Soke</Button>}
+      </div>
+    </form>
+  );
+}
+
+function SurahForm({ onSave, initial, onCancel }) {
+  const [form, setForm] = useState(initial || { number: '', name_arabic: '', name_english: '', name_hausa: '', verses_count: '', revelation_type: 'Makka', audio_url: '', reciter: '' });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.name_arabic || !form.name_english) return;
+    setSaving(true);
+    await onSave({ ...form, number: Number(form.number), verses_count: form.verses_count ? Number(form.verses_count) : undefined });
+    setSaving(false);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="Lamba (1-114) *" type="number" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} required />
+        <Input placeholder="Adadin Ayoyi" type="number" value={form.verses_count} onChange={e => setForm({ ...form, verses_count: e.target.value })} />
+      </div>
+      <Input placeholder="Sunan Larabci * (e.g. الفاتحة)" value={form.name_arabic} onChange={e => setForm({ ...form, name_arabic: e.target.value })} required />
+      <Input placeholder="Sunan Turanci * (e.g. Al-Fatiha)" value={form.name_english} onChange={e => setForm({ ...form, name_english: e.target.value })} required />
+      <Input placeholder="Sunan Hausa (e.g. Bude Littafi)" value={form.name_hausa} onChange={e => setForm({ ...form, name_hausa: e.target.value })} />
+      <Select value={form.revelation_type} onValueChange={v => setForm({ ...form, revelation_type: v })}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Makka">Makka</SelectItem>
+          <SelectItem value="Madina">Madina</SelectItem>
+        </SelectContent>
+      </Select>
+      <UploadField label="Fayilin Audio" value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} accept="audio/*" />
+      <Input placeholder="Sunan Mai Karatun" value={form.reciter} onChange={e => setForm({ ...form, reciter: e.target.value })} />
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" className="flex-1" disabled={saving}>
+          {saving ? 'Ana ajiyewa...' : (initial ? 'Sabunta' : 'Ɗora Surah')}
+        </Button>
+        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Soke</Button>}
+      </div>
+    </form>
+  );
+}
+
+export default function AdminPage() {
+  const [tab, setTab] = useState('audio');
+  const [audioList, setAudioList] = useState([]);
+  const [videoList, setVideoList] = useState([]);
+  const [surahList, setSurahList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const { toast } = useToast();
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    const [a, v, s] = await Promise.all([
+      base44.entities.AudioSermon.list('-created_date', 200),
+      base44.entities.VideoSermon.list('-created_date', 200),
+      base44.entities.Surah.list('number', 200),
+    ]);
+    setAudioList(a);
+    setVideoList(v);
+    setSurahList(s);
+    setLoading(false);
+  }
+
+  async function saveAudio(data) {
+    if (editing) {
+      await base44.entities.AudioSermon.update(editing.id, data);
+      toast({ description: "An sabunta wa'azin" });
+    } else {
+      await base44.entities.AudioSermon.create(data);
+      toast({ description: "An ɗora sabon wa'azi" });
+    }
+    setShowForm(false); setEditing(null); loadAll();
+  }
+
+  async function saveVideo(data) {
+    if (editing) {
+      await base44.entities.VideoSermon.update(editing.id, data);
+      toast({ description: "An sabunta bidiyo" });
+    } else {
+      await base44.entities.VideoSermon.create(data);
+      toast({ description: "An ɗora sabon bidiyo" });
+    }
+    setShowForm(false); setEditing(null); loadAll();
+  }
+
+  async function saveSurah(data) {
+    if (editing) {
+      await base44.entities.Surah.update(editing.id, data);
+      toast({ description: "An sabunta surar" });
+    } else {
+      await base44.entities.Surah.create(data);
+      toast({ description: "An ɗora sabuwar sura" });
+    }
+    setShowForm(false); setEditing(null); loadAll();
+  }
+
+  async function deleteItem(entity, id) {
+    await entity.delete(id);
+    toast({ description: "An share" });
+    loadAll();
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-4 border-secondary border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground mb-1">Ɗakin Admin</h1>
+          <p className="text-sm text-muted-foreground font-body">Ɗora da sarrafa abinda ke cikin app</p>
+        </div>
+        <Button onClick={() => { setShowForm(true); setEditing(null); }}>
+          <Plus size={16} className="mr-1" /> Ɗora Sabuwa
+        </Button>
+      </div>
+
+      <Dialog open={showForm} onOpenChange={(o) => { setShowForm(o); if (!o) setEditing(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Gyara' : 'Ɗora Sabuwa'}</DialogTitle>
+          </DialogHeader>
+          {tab === 'audio' && <AudioForm onSave={saveAudio} initial={editing} onCancel={() => { setShowForm(false); setEditing(null); }} />}
+          {tab === 'video' && <VideoForm onSave={saveVideo} initial={editing} onCancel={() => { setShowForm(false); setEditing(null); }} />}
+          {tab === 'quran' && <SurahForm onSave={saveSurah} initial={editing} onCancel={() => { setShowForm(false); setEditing(null); }} />}
+        </DialogContent>
+      </Dialog>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="audio" className="flex items-center gap-1.5">
+            <Headphones size={14} /> Wa'azi ({audioList.length})
+          </TabsTrigger>
+          <TabsTrigger value="video" className="flex items-center gap-1.5">
+            <Video size={14} /> Bidiyo ({videoList.length})
+          </TabsTrigger>
+          <TabsTrigger value="quran" className="flex items-center gap-1.5">
+            <BookOpen size={14} /> Qur'ani ({surahList.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="audio">
+          {audioList.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Ba a ɗora wa'azi tukuna</p>
+          ) : (
+            <div className="space-y-2">
+              {audioList.map(item => (
+                <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {item.cover_image ? <img src={item.cover_image} alt="" className="w-full h-full object-cover" /> : <Headphones size={18} className="text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate font-body">
+                      {item.is_featured && <Star size={12} className="inline text-amber-500 mr-1" />}
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{item.speaker} · {item.category || 'N/A'}</p>
+                  </div>
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} className="p-1.5 text-muted-foreground hover:text-primary transition-colors">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => deleteItem(base44.entities.AudioSermon, item.id)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="video">
+          {videoList.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Ba a ɗora bidiyo tukuna</p>
+          ) : (
+            <div className="space-y-2">
+              {videoList.map(item => (
+                <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Video size={18} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate font-body">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{item.speaker} · {item.category || 'N/A'}</p>
+                  </div>
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} className="p-1.5 text-muted-foreground hover:text-primary transition-colors">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => deleteItem(base44.entities.VideoSermon, item.id)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="quran">
+          {surahList.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Ba a ɗora sura tukuna</p>
+          ) : (
+            <div className="space-y-2">
+              {surahList.map(item => (
+                <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-primary text-xs font-bold font-heading">{item.number}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground font-body">{item.name_arabic} — {item.name_english}</p>
+                    <p className="text-xs text-muted-foreground">{item.revelation_type} · {item.verses_count} ayoyi</p>
+                  </div>
+                  <button onClick={() => { setEditing(item); setShowForm(true); }} className="p-1.5 text-muted-foreground hover:text-primary transition-colors">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => deleteItem(base44.entities.Surah, item.id)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <footer className="text-center py-6 mt-8 border-t border-border">
+        <p className="text-xs text-muted-foreground">&copy; DAN MATAWALLEY TECHNOLOGIES</p>
+      </footer>
+    </div>
+  );
+}
